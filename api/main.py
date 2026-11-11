@@ -14,7 +14,7 @@ app = FastAPI()
 
 # We have to modify the domains that can access the api
 
-origins = ["http://localhost:5174"]
+origins = ["http://localhost"]
 
 
 app.add_middleware(
@@ -24,11 +24,6 @@ app.add_middleware(
     allow_methods=["*"],  # allow all the methods of the API
     allow_headers=["*"],
 )
-
-
-# Change CORS allowed connections to allow another web pages from my computer access the API
-
-allowed_connections = ["http://localhost", "http://localhost:5173"]
 
 
 @app.get("/products", summary="Get all the products from the database")
