@@ -1,0 +1,7 @@
+{
+    "files.exclude": {
+        "**/.mypy_cache": true,
+        "**/__pycache__":true
+    },
+    "python-envs.defaultEnvManager": "ms-python.python:system"
+}
