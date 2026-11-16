@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 # With FastAPI, the serialization is made by the framework automatically
 # Serialize: transforms a python object to Json file
@@ -14,7 +15,7 @@ app = FastAPI()
 
 # We have to modify the domains that can access the api
 
-origins = ["http://localhost"]
+origins = ["http://localhost:5500", "http://127.0.0.1:5500"]
 
 
 app.add_middleware(
@@ -35,23 +36,33 @@ def read_products():
         return products
 
 
+# To add a new product, we send the url in the body of the request
+
+# To do that, we need pydantic models, as we have to define the format of the object we are receiving
+
+
+class Item(BaseModel):
+    url: str
+
+
 @app.post(
     "/products",
     summary="Add a new product to the database",
     status_code=status.HTTP_201_CREATED,
 )
-def create_product(url: str):
+def create_product(item: Item):
     """Add a new product to the database"""
 
     with open("api/products.json", mode="r+", encoding="UTF_8") as file:
         products = json.load(file)
         uuid = str(uuid4())
-        if url in products:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="The product is already in the database",
-            )
-        products[url] = uuid
+        for product in products:
+            if product["url"] == item.url:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="The product is already in the database",
+                )
+        products.append({"url": item.url, "id": uuid})
         file.seek(0)
         file.truncate()
         json.dump(products, file)
@@ -69,6 +80,8 @@ def create_product(url: str):
         file.seek(0)
         file.truncate()
         json.dump(prices, file)
+
+    return {"id": uuid, "message": "Product added successfully"}
 
 
 @app.get("/products/{uuid}/prices", summary="Read the history of prices from a product")
