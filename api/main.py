@@ -76,7 +76,7 @@ def create_product(item: Item):
                 detail="The product is already in the database",
             )
 
-        prices[uuid] = {}
+        prices[uuid] = []
         file.seek(0)
         file.truncate()
         json.dump(prices, file)
@@ -85,7 +85,7 @@ def create_product(item: Item):
 
 
 @app.get("/products/{uuid}/prices", summary="Read the history of prices from a product")
-def read_prices(uuid: str) -> dict | None:
+def read_prices(uuid: str) -> list | None:
     """Get the prices history of a product"""
 
     with open("api/prices.json", mode="r", encoding="UTF_8") as file:
@@ -114,7 +114,8 @@ def put_price(uuid: str, price: float):
                 detail="Product wasn't found in the database",
             )
 
-        prices[uuid][datetime.now().isoformat()] = price
+        prices[uuid].append({"date": datetime.now().isoformat(), "price": price})
+
         file.seek(0)
         file.truncate()
         json.dump(prices, file)

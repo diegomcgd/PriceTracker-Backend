@@ -1,3 +1,5 @@
+import re
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -20,13 +22,30 @@ def get_price(url: str) -> float:
     if content.status_code == 200:
         soup = BeautifulSoup(content.text, "html.parser")
 
-        container = soup.find("div", class_="price fx-text fx-text--no-margin")
+        # Container of the price
 
-        if container:
-            priceString = container.text.strip()
+        container_price = soup.find("div", class_="price fx-text fx-text--no-margin")
+
+        if container_price:
+            # If there is a discount, the current price is in an span
+            span_discount = soup.find("span", class_="price__primary")
+
+            # Check if there is a discount or not
+            objective = span_discount if span_discount else container_price
+
+            # Contents:
+            #   <span class="price__primary">
+            #       148
+            #       <span class="price__symbol"> €</span>
+            #   </span>
+            #
+            # contents[0] -> " 148 "
+            # contents[1] -> <span class="price__symbol"> €</span>
+
+            price_string = str(objective.contents[0]).strip()
 
             price = float(
-                priceString.replace("$", "")
+                price_string.replace("$", "")
                 .replace("€", "")
                 .replace(".", "")
                 .replace(",", ".")
@@ -34,9 +53,8 @@ def get_price(url: str) -> float:
 
             return price
 
-        else:
-            print("Price wasn't found")
-            return -1
+        print("Price wasn't found")
+        return -1
 
     else:
         print("There was an error with the get method")
@@ -46,7 +64,7 @@ def get_price(url: str) -> float:
 # get all urls
 
 
-def get_all_products() -> dict | None:
+def get_all_products() -> list | None:
     """Sends a request to the API to get the products"""
 
     products = requests.get(API_BASE_URL + "/products")
@@ -61,11 +79,11 @@ def get_all_products() -> dict | None:
 # post url's price for today
 
 
-def put_new_prices(products: dict) -> bool:
+def put_new_prices(products: list) -> bool:
     """Put the new price of every product in the database"""
 
-    for url, uuid in products.items():
-        price = get_price(url)
+    for product in products:
+        price = get_price(product["url"])
 
         if price == -1:
             continue
@@ -76,12 +94,12 @@ def put_new_prices(products: dict) -> bool:
             #   - As querys (?price=3000). In requests, we have to add into params a dictionary with the pair {"name_of_the_param": value_of_the_param}
             #   - In the body of the request
             # In this case, I'm sending the price as a query, creating a dictionary with the name of the variable and its value
-            API_BASE_URL + "/products/" + uuid + "/prices",
+            API_BASE_URL + "/products/" + product["id"] + "/prices",
             params={"price": price},
         )
 
-        if request.status_code != 200:
-            print("Price wasn't put in the database. Url: " + url)
+        if request.status_code != 201:
+            print("Price wasn't put in the database. Url: " + product["url"])
             return False
 
     return True
