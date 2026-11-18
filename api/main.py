@@ -6,6 +6,8 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from scraper import get_name_and_price
+
 # With FastAPI, the serialization is made by the framework automatically
 # Serialize: transforms a python object to Json file
 # Deserialize: transforms a Json file in a python object
@@ -53,6 +55,18 @@ class Item(BaseModel):
 def create_product(item: Item):
     """Add a new product to the database"""
 
+    # Get the name and the price of the product
+    result = get_name_and_price(item.url)
+
+    if result is not None:
+        name, price = result
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="The URL is not valid",
+        )
+
     with open("api/products.json", mode="r+", encoding="UTF_8") as file:
         products = json.load(file)
         uuid = str(uuid4())
@@ -62,7 +76,8 @@ def create_product(item: Item):
                     status_code=status.HTTP_409_CONFLICT,
                     detail="The product is already in the database",
                 )
-        products.append({"url": item.url, "id": uuid})
+
+        products.append({"name": name, "url": item.url, "id": uuid})
         file.seek(0)
         file.truncate()
         json.dump(products, file)
@@ -70,13 +85,19 @@ def create_product(item: Item):
     with open("api/prices.json", mode="r+", encoding="UTF_8") as file:
         prices = json.load(file)
 
-        if uuid in prices:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="The product is already in the database",
-            )
+        for product_history in prices:
+            if product_history["id"] == uuid:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="The product is already in the database",
+                )
 
-        prices[uuid] = []
+        prices.append(
+            {
+                "id": uuid,
+                "history": [{"date": datetime.now().isoformat(), "price": price}],
+            }
+        )
         file.seek(0)
         file.truncate()
         json.dump(prices, file)
@@ -90,12 +111,15 @@ def read_prices(uuid: str) -> list | None:
 
     with open("api/prices.json", mode="r", encoding="UTF_8") as file:
         prices = json.load(file)
-        if uuid not in prices:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="There is no product with that id",
-            )
-        return prices[uuid]
+
+        for price in prices:
+            if price["id"] == uuid:
+                return price["history"]
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="There is no product with that id",
+        )
 
 
 @app.put(
@@ -108,14 +132,39 @@ def put_price(uuid: str, price: float):
 
     with open("api/prices.json", mode="r+", encoding="UTF_8") as file:
         prices = json.load(file)
-        if uuid not in prices:
+
+        for history in prices:
+            if history["id"] == uuid:
+                history["history"].append(
+                    {"date": datetime.now().isoformat(), "price": price}
+                )
+                break
+
+        else:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Product wasn't found in the database",
             )
 
-        prices[uuid].append({"date": datetime.now().isoformat(), "price": price})
-
         file.seek(0)
         file.truncate()
         json.dump(prices, file)
+
+
+@app.get("/products/prices", summary="Get the last price of every product")
+def read_current_prices() -> list:
+    """Get the current price of every product"""
+
+    with open("api/prices.json", mode="r", encoding="UTF_8") as file:
+        prices = json.load(file)
+
+        result = []
+
+        for price in prices:
+            if price["history"] == []:
+                current_price = -1
+            else:
+                current_price = price["history"][-1]["price"]
+            result.append({"id": price["id"], "price": current_price})
+
+    return result

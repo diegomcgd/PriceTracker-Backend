@@ -1,7 +1,7 @@
-import re
-
 import requests
 from bs4 import BeautifulSoup
+
+# Price tracker for all products in the database
 
 headers = {
     "User-Agent": (
@@ -17,10 +17,10 @@ API_BASE_URL = "http://0.0.0.0:8000"
 def get_price(url: str) -> float:
     """Get the price of a product given its url"""
 
-    content = requests.get(url, headers=headers)
+    request = requests.get(url, headers=headers)
 
-    if content.status_code == 200:
-        soup = BeautifulSoup(content.text, "html.parser")
+    if request.status_code == 200:
+        soup = BeautifulSoup(request.text, "html.parser")
 
         # Container of the price
 
@@ -111,4 +111,6 @@ def main():
         put_new_prices(products)
 
 
-main()
+# To avoid running the script when importing it (for example, in api/main.py)
+if __name__ == "__main__":
+    main()
