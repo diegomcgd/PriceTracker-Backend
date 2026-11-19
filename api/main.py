@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -168,3 +168,20 @@ def read_current_prices() -> list:
             result.append({"id": price["id"], "price": current_price})
 
     return result
+
+
+@app.get("/products/{uuid}", summary="Get product information")
+def read_product(uuid: UUID) -> object | None:
+    """Get the product with an uuid"""
+
+    with open("api/products.json", mode="r", encoding="UTF_8") as file:
+        products = json.load(file)
+
+        for product in products:
+            if product["id"] == str(uuid):
+                return product
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="There is no product with that id",
+        )

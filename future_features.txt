@@ -1,3 +1,5 @@
 1. Transform the functions in the API to async functions
 
 2. Use Pydantic in the APIs
+
+3. Load the products in the cache when running the API, then transform them to a dictionary
