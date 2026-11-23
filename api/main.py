@@ -67,6 +67,8 @@ def create_product(item: Item):
             detail="The URL is not valid",
         )
 
+    # save the product in products.json
+
     with open("api/products.json", mode="r+", encoding="UTF_8") as file:
         products = json.load(file)
         uuid = str(uuid4())
@@ -81,6 +83,8 @@ def create_product(item: Item):
         file.seek(0)
         file.truncate()
         json.dump(products, file)
+
+    # save product in prices.json
 
     with open("api/prices.json", mode="r+", encoding="UTF_8") as file:
         prices = json.load(file)
@@ -185,3 +189,47 @@ def read_product(uuid: UUID) -> object | None:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="There is no product with that id",
         )
+
+
+@app.delete("/products/{uuid}", summary="Delete a product")
+def delete_product(uuid: UUID) -> object | None:
+    """Delete a product from the database"""
+
+    with open("api/products.json", mode="r+", encoding="UTF_8") as file:
+        products = json.load(file)
+
+        for product in products:
+            if product["id"] == str(uuid):
+                products.remove(product)
+                product_removed = product
+                break
+
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="There is no product with that id",
+            )
+
+        file.seek(0)
+        file.truncate()
+        json.dump(products, file)
+
+    with open("api/prices.json", mode="r+", encoding="UTF_8") as file:
+        prices = json.load(file)
+
+        for price in prices:
+            if price["id"] == str(uuid):
+                prices.remove(price)
+                break
+
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="There is no product with that id",
+            )
+
+        file.seek(0)
+        file.truncate()
+        json.dump(prices, file)
+
+    return product_removed
